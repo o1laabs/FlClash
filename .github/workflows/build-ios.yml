@@ -39,12 +39,13 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: "3.47.9"
           channel: stable
           cache: true
 
-      - name: Install XcodeGen, gomobile & ldid
+      - name: Install gomobile & ldid
         run: |
-          brew install xcodegen ldid
+          brew install ldid
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
           gomobile init
@@ -54,7 +55,7 @@ jobs:
           python3 tool/apply_ios_port.py
           BUNDLE_ID="${{ github.event.inputs.bundle_id || 'com.follow.clash.ios' }}"
           APP_GROUP="${{ github.event.inputs.app_group_id || 'group.com.follow.clash.ios' }}"
-          sed -i '' "s/com.follow.clash.ios/${BUNDLE_ID}/g" ios/project.yml ios/Runner/FlClashServicePlugin.swift ios/Runner/Runner.entitlements ios/PacketTunnel/PacketTunnel.entitlements
+          sed -i '' "s/com.follow.clash.ios/${BUNDLE_ID}/g" ios/Runner/FlClashServicePlugin.swift ios/Runner/Runner.entitlements ios/PacketTunnel/PacketTunnel.entitlements ios/PacketTunnel/Info.plist
           sed -i '' "s/group.com.follow.clash.ios/${APP_GROUP}/g" ios/Runner/FlClashServicePlugin.swift ios/Runner/Runner.entitlements ios/PacketTunnel/PacketTunnel.entitlements
 
       - name: Build Mihomo Go Core XCFramework (Core.xcframework)
@@ -68,14 +69,18 @@ jobs:
 
       - name: Generate Xcode Project & Fetch Flutter Dependencies
         run: |
+          BUNDLE_ID="${{ github.event.inputs.bundle_id || 'com.follow.clash.ios' }}"
           flutter config --enable-ios
           flutter create --platforms=ios --org com.follow.clash .
-          cd ios && xcodegen generate && cd ..
           flutter pub get
+          sed -i '' -E "s/PRODUCT_BUNDLE_IDENTIFIER = com\\.follow\\.clash\\.[A-Za-z0-9_]+;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};/g" ios/Runner.xcodeproj/project.pbxproj
+          grep -q "PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};" ios/Runner.xcodeproj/project.pbxproj
 
       - name: Build Flutter iOS Release Archive (No Codesign)
         run: |
           flutter build ios --release --no-codesign
+          test -f build/ios/iphoneos/Runner.app/Frameworks/App.framework/App
+          test -d build/ios/iphoneos/Runner.app/Frameworks/App.framework/flutter_assets
 
       - name: Package IPA 1 — Free Apple ID Self-Sign Edition (AltStore / SideStore / Sideloadly)
         run: |

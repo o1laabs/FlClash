@@ -29,6 +29,9 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
+  # Static gomobile xcframework built by CI into ios/Frameworks before pod install.
+  pod 'Core', :path => '.'
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
