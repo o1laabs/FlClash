@@ -91,7 +91,7 @@ jobs:
 
       - name: Build Flutter iOS Release Archive (No Codesign)
         run: |
-          flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign --verbose
           test -f build/ios/iphoneos/Runner.app/Frameworks/App.framework/App
           test -d build/ios/iphoneos/Runner.app/Frameworks/App.framework/flutter_assets
 
