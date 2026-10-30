@@ -77,7 +77,7 @@ jobs:
             -o ../ios/Frameworks/Core.xcframework \
             ./mobile
 
-      - name: Generate Xcode Project & Fetch Flutter Dependencies
+      - name: Generate Xcode Project, Link Core & Install Pods
         run: |
           BUNDLE_ID="${{ github.event.inputs.bundle_id || 'com.follow.clash.ios' }}"
           flutter config --enable-ios
@@ -85,6 +85,9 @@ jobs:
           flutter pub get
           sed -i '' -E "s/PRODUCT_BUNDLE_IDENTIFIER = com\\.follow\\.clash\\.[A-Za-z0-9_]+;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};/g" ios/Runner.xcodeproj/project.pbxproj
           grep -q "PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};" ios/Runner.xcodeproj/project.pbxproj
+          ruby tool/link_core_framework.rb
+          cd ios && pod install && cd ..
+          ls -l ios/Podfile.lock ios/Pods/Manifest.lock
 
       - name: Build Flutter iOS Release Archive (No Codesign)
         run: |
