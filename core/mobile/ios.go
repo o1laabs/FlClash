@@ -3,6 +3,7 @@
 package mobile
 
 import (
+	"core"
 	"encoding/json"
 	"runtime"
 	"runtime/debug"
@@ -50,6 +51,18 @@ func SetIOSEventListener(listener EventListener) {
 	iosEventMu.Lock()
 	iosListener = listener
 	iosEventMu.Unlock()
+	if listener == nil {
+		core.SetIOSEventListenerCore(nil)
+		return
+	}
+	core.SetIOSEventListenerCore(func(data []byte) {
+		iosEventMu.RLock()
+		current := iosListener
+		iosEventMu.RUnlock()
+		if current != nil {
+			_ = current.OnEvent(string(data))
+		}
+	})
 }
 
 // InvokeCoreMethod dispatches a FlClash MethodChannel-style JSON envelope
@@ -84,4 +97,16 @@ func StopIOSTun() {
 func ForceIOSGC() {
 	runtime.GC()
 	debug.FreeOSMemory()
+}
+
+func handleIOSMethodCall(payload string) string {
+	return core.HandleIOSMethodCallJSON(payload)
+}
+
+func startIOSTunWithFD(fd, mtu int, stack, dnsAddress string) error {
+	return core.StartIOSTunDescriptor(fd, mtu, stack, dnsAddress)
+}
+
+func stopIOSTunInternal() {
+	core.StopIOSTunDescriptor()
 }

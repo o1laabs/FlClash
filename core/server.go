@@ -43,7 +43,26 @@ func logDeliveryError(format string, args ...any) {
 }
 
 func deliverEvent(data []byte) {
+	appleEventSinkMu.RLock()
+	sink := appleEventSink
+	appleEventSinkMu.RUnlock()
+	if sink != nil {
+		sink(data)
+		return
+	}
 	send(data)
+}
+
+// An Apple host has no IPC peer to send to, so it installs a sink instead.
+var (
+	appleEventSinkMu sync.RWMutex
+	appleEventSink   func([]byte)
+)
+
+func setAppleEventSink(listener func([]byte)) {
+	appleEventSinkMu.Lock()
+	appleEventSink = listener
+	appleEventSinkMu.Unlock()
 }
 
 // The desktop core exits with its host connection, so it is always heard.
