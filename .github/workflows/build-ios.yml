@@ -1,0 +1,109 @@
+name: Build FlClash iOS & iPadOS (.ipa)
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: "Base Bundle ID (auto-suffixed by AltStore/SideStore/Sideloadly)"
+        required: false
+        default: "com.follow.clash.ios"
+      app_group_id:
+        description: "App Group ID (used in FullTunnel mode)"
+        required: false
+        default: "group.com.follow.clash.ios"
+  push:
+    branches:
+      - main
+      - ios-port
+
+jobs:
+  build-ios:
+    name: Build iOS Universal IPA (iPhone + iPad)
+    runs-on: macos-15
+    steps:
+      - name: Checkout FlClash with Submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Go 1.27
+        uses: actions/setup-go@v5
+        with:
+          go-version: "^1.24"
+
+      - name: Set up Rust Toolchain (for plugins/rust_api if needed)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install XcodeGen, gomobile & ldid
+        run: |
+          brew install xcodegen ldid
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          go install golang.org/x/mobile/cmd/gobind@latest
+          gomobile init
+
+      - name: Apply iOS & iPadOS Port Patches
+        run: |
+          python3 tool/apply_ios_port.py
+          BUNDLE_ID="${{ github.event.inputs.bundle_id || 'com.follow.clash.ios' }}"
+          APP_GROUP="${{ github.event.inputs.app_group_id || 'group.com.follow.clash.ios' }}"
+          sed -i '' "s/com.follow.clash.ios/${BUNDLE_ID}/g" ios/project.yml ios/Runner/FlClashServicePlugin.swift ios/Runner/Runner.entitlements ios/PacketTunnel/PacketTunnel.entitlements
+          sed -i '' "s/group.com.follow.clash.ios/${APP_GROUP}/g" ios/Runner/FlClashServicePlugin.swift ios/Runner/Runner.entitlements ios/PacketTunnel/PacketTunnel.entitlements
+
+      - name: Build Mihomo Go Core XCFramework (Core.xcframework)
+        working-directory: core
+        run: |
+          mkdir -p ../ios/Frameworks
+          gomobile bind -v -target=ios,iossimulator -iosversion=15.0 \
+            -ldflags="-s -w" \
+            -o ../ios/Frameworks/Core.xcframework \
+            ./mobile
+
+      - name: Generate Xcode Project & Fetch Flutter Dependencies
+        run: |
+          flutter config --enable-ios
+          flutter create --platforms=ios --org com.follow.clash .
+          cd ios && xcodegen generate && cd ..
+          flutter pub get
+
+      - name: Build Flutter iOS Release Archive (No Codesign)
+        run: |
+          flutter build ios --release --no-codesign
+
+      - name: Package IPA 1 — Free Apple ID Self-Sign Edition (AltStore / SideStore / Sideloadly)
+        run: |
+          mkdir -p build_ipa/free/Payload
+          cp -R build/ios/iphoneos/Runner.app build_ipa/free/Payload/Runner.app
+          # Remove PacketTunnel.appex and restricted NetworkExtension entitlements
+          # so Personal Free Apple IDs can sign and install without provisioning errors
+          rm -rf build_ipa/free/Payload/Runner.app/PlugIns/PacketTunnel.appex
+          ldid -Sios/Runner/Runner-FreeAccount.entitlements build_ipa/free/Payload/Runner.app/Runner
+          cd build_ipa/free
+          zip -r9 ../../FlClash-iOS-FreeSign-iPhone-iPad.ipa Payload
+
+      - name: Package IPA 2 — Full Tunnel Edition (TrollStore / Paid Certificate)
+        run: |
+          mkdir -p build_ipa/full/Payload
+          cp -R build/ios/iphoneos/Runner.app build_ipa/full/Payload/Runner.app
+          ldid -Sios/Runner/Runner.entitlements build_ipa/full/Payload/Runner.app/Runner
+          if [ -d "build_ipa/full/Payload/Runner.app/PlugIns/PacketTunnel.appex" ]; then
+            ldid -Sios/PacketTunnel/PacketTunnel.entitlements build_ipa/full/Payload/Runner.app/PlugIns/PacketTunnel.appex/PacketTunnel
+          fi
+          cd build_ipa/full
+          zip -r9 ../../FlClash-iOS-FullTunnel-Unsigned.ipa Payload
+
+      - name: Upload Both IPA Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlClash-iOS-Universal-IPAs
+          path: |
+            FlClash-iOS-FreeSign-iPhone-iPad.ipa
+            FlClash-iOS-FullTunnel-Unsigned.ipa
+          retention-days: 30
