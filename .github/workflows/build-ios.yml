@@ -26,6 +26,16 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Select Xcode 26 (connectivity_plus needs the iOS 26 SDK)
+        run: |
+          for v in 26.3 26.2 26.1.1 26.0.1; do
+            if [ -d "/Applications/Xcode_${v}.app" ]; then
+              sudo xcode-select -s "/Applications/Xcode_${v}.app"
+              break
+            fi
+          done
+          xcodebuild -version
+
       - name: Set up Go 1.27
         uses: actions/setup-go@v5
         with:
