@@ -6,3 +6,6 @@ rustflags = [
 
 [target.aarch64-apple-ios-sim]
 rustflags = ["-Clink-arg=-Wl,-U,___chkstk_darwin"]
+
+[env]
+IPHONEOS_DEPLOYMENT_TARGET = "15.0"
