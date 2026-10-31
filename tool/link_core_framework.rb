@@ -22,7 +22,7 @@ target.build_configurations.each do |config|
   settings['FRAMEWORK_SEARCH_PATHS'] = search
 
   flags = Array(settings['OTHER_LDFLAGS'] || '$(inherited)')
-  %w[-ObjC -lc++ -lsqlite3 -lz].each { |flag| flags << flag unless flags.include?(flag) }
+  %w[-ObjC -lc++ -lsqlite3 -lz -lresolv].each { |flag| flags << flag unless flags.include?(flag) }
   settings['OTHER_LDFLAGS'] = flags
 
   if File.exist?('ios/Runner/Runner-Bridging-Header.h')
