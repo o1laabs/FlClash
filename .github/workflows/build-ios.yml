@@ -82,7 +82,8 @@ jobs:
           BUNDLE_ID="${{ github.event.inputs.bundle_id || 'com.follow.clash.ios' }}"
           flutter config --enable-ios
           flutter create --platforms=ios --org com.follow.clash .
-          flutter pub get
+          git checkout -- pubspec.yaml pubspec.lock
+          flutter pub get --enforce-lockfile
           sed -i '' -E "s/PRODUCT_BUNDLE_IDENTIFIER = com\\.follow\\.clash\\.[A-Za-z0-9_]+;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};/g" ios/Runner.xcodeproj/project.pbxproj
           grep -q "PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};" ios/Runner.xcodeproj/project.pbxproj
           ruby tool/link_core_framework.rb
@@ -92,6 +93,10 @@ jobs:
       - name: Build Flutter iOS Release Archive (No Codesign)
         run: |
           flutter build ios --release --no-codesign --verbose
+          if [ ! -d build/ios/iphoneos/Runner.app ] && [ -d build/ios/Release-iphoneos/Runner.app ]; then
+            mkdir -p build/ios/iphoneos
+            cp -R build/ios/Release-iphoneos/Runner.app build/ios/iphoneos/
+          fi
           test -f build/ios/iphoneos/Runner.app/Frameworks/App.framework/App
           test -d build/ios/iphoneos/Runner.app/Frameworks/App.framework/flutter_assets
 
