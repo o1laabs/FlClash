@@ -7,7 +7,7 @@ target = project.targets.find { |t| t.name == 'Runner' } or abort('Runner target
 sources = target.source_build_phase
 runner = project.main_group.find_subpath('Runner') || project.main_group.new_group('Runner', 'Runner')
 (Dir['ios/Runner/*.swift'] + Dir['ios/Runner/*.m']).sort.each do |path|
-  reference = runner.files.find { |f| f.path == File.basename(path) } || runner.new_reference(path)
+  reference = runner.files.find { |f| f.path == File.basename(path) } || runner.new_reference(File.basename(path))
   sources.add_file_reference(reference, true) unless sources.files_references.include?(reference)
 end
 
