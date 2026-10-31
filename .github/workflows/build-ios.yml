@@ -91,6 +91,9 @@ jobs:
           ls -l ios/Podfile.lock ios/Pods/Manifest.lock
 
       - name: Build Flutter iOS Release Archive (No Codesign)
+        env:
+          IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+          RUSTFLAGS: "-Clink-arg=-mios-version-min=15.0"
         run: |
           flutter build ios --release --no-codesign --verbose
           if [ ! -d build/ios/iphoneos/Runner.app ] && [ -d build/ios/Release-iphoneos/Runner.app ]; then
