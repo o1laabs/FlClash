@@ -1,0 +1,8 @@
+[target.aarch64-apple-ios]
+rustflags = [
+  "-Clink-arg=-mios-version-min=15.0",
+  "-Clink-arg=-Wl,-U,___chkstk_darwin",
+]
+
+[target.aarch64-apple-ios-sim]
+rustflags = ["-Clink-arg=-Wl,-U,___chkstk_darwin"]
